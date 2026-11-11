@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>TRON Testnet Studio</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;padding:20px;
+ background:#101827;color:#fff;
+ font-family:Arial,sans-serif
+}
+header{text-align:center;padding:20px 0}
+h1{color:#ff626b;font-size:25px}
+.subtitle{color:#aab7ca;font-size:13px}
+.card{
+ background:#1c293b;padding:18px;
+ border-radius:14px;margin:15px 0
+}
+.badge{
+ background:#174c3a;color:#75f0b5;
+ padding:7px 12px;border-radius:20px;
+ font-size:12px
+}
+button{
+ width:100%;padding:14px;
+ border:0;border-radius:9px;
+ background:#e94c5a;color:white;
+ font-size:15px;font-weight:bold;
+ margin-top:12px
+}
+button:disabled{opacity:.5}
+input{
+ width:100%;padding:13px;
+ margin-top:10px;border-radius:8px;
+ border:1px solid #526178;
+ background:#101827;color:white
+}
+.small{font-size:12px;color:#aab7ca}
+#status{overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+
+<header>
+<h1>TRON TESTNET STUDIO</h1>
+<p class="subtitle">Your TRC20 Development Dashboard</p>
+<span class="badge">NILE TESTNET ONLY</span>
+</header>
+
+<div class="card">
+<h3>Wallet Connection</h3>
+<p class="small">Connect your TronLink test wallet.</p>
+<button onclick="connectWallet()">Connect TronLink</button>
+<p id="status">Wallet not connected</p>
+</div>
+
+<div class="card">
+<h3>Network Information</h3>
+<p id="network">Waiting for wallet connection</p>
+</div>
+
+<div class="card">
+<h3>Token Creation</h3>
+<p class="small">Create a genuine custom TRC20 test token.</p>
+<input id="tokenName" placeholder="Token Name">
+<input id="tokenSymbol" placeholder="Token Symbol">
+<input id="supply" type="number"
+placeholder="Initial supply">
+<button disabled>Create Test Token – Next Step</button>
+</div>
+
+<div class="card">
+<h3>Token Transfer</h3>
+<input placeholder="Recipient TRON address" disabled>
+<input placeholder="Amount" disabled>
+<button disabled>Send Test Tokens – Next Step</button>
+</div>
+
+<p class="small" style="text-align:center">
+Development version 1.0 | Testnet only<br>
+No real USDT or mainnet transactions.
+</p>
+
+<script>
+
+let tronProvider = null;
+
+window.addEventListener("TIP6963:announceProvider", (event) => {
+  if (event.detail?.info?.name === "TronLink") {
+    tronProvider = event.detail.provider;
+  }
+});
+
+window.dispatchEvent(new Event("TIP6963:requestProvider"));
+
+async function connectWallet() {
+  const status = document.getElementById("status");
+  const network = document.getElementById("network");
+
+  try {
+    tronProvider = tronProvider || window.tron;
+
+    if (!tronProvider) {
+      throw new Error(
+        "Open this website inside TronLink DApp browser."
+      );
+    }
+
+    await tronProvider.request({
+      method: "eth_requestAccounts"
+    });
+
+    const tronWeb = tronProvider.tronWeb;
+
+    if (!tronWeb || !tronWeb.ready) {
+      throw new Error("Wallet is not ready. Try again.");
+    }
+
+    const address = tronWeb.defaultAddress.base58;
+    const host = tronWeb.fullNode.host || "";
+
+    status.innerText = "Connected: " + address;
+
+    if (host.toLowerCase().includes("nile")) {
+      network.innerText = "NILE TESTNET VERIFIED";
+      network.style.color = "#75f0b5";
+    } else {
+      network.innerText =
+        "Network not verified as Nile. No transactions allowed.";
+      network.style.color = "#ff626b";
+    }
+
+  } catch (error) {
+    status.innerText = "Connection failed: " + error.message;
+  }
+}
+
+</script>
+
+</body>
+</html>
