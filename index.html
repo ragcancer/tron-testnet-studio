@@ -1,144 +1,370 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#101827">
-<title>TRON Testnet Studio</title>
+<title>TRON Testnet Studio v2.1</title>
 <style>
 *{box-sizing:border-box}
 body{
- margin:0;padding:20px;
+ margin:0;padding:18px;
  background:#101827;color:#fff;
- font-family:Arial,sans-serif
+ font-family:Arial,sans-serif;
+ max-width:850px;margin:auto
 }
-header{text-align:center;padding:20px 0}
+header{text-align:center;padding:16px 0}
 h1{color:#ff626b;font-size:25px}
-.subtitle{color:#aab7ca;font-size:13px}
 .card{
  background:#1c293b;padding:18px;
  border-radius:14px;margin:15px 0
 }
 .badge{
- background:#174c3a;color:#75f0b5;
- padding:7px 12px;border-radius:20px;
- font-size:12px
+ display:inline-block;background:#174c3a;
+ color:#75f0b5;padding:7px 12px;
+ border-radius:20px;font-size:12px
 }
 button{
- width:100%;padding:14px;
- border:0;border-radius:9px;
- background:#e94c5a;color:white;
- font-size:15px;font-weight:bold;
+ width:100%;padding:13px;border:0;
+ border-radius:9px;background:#e94c5a;
+ color:white;font-size:15px;font-weight:bold;
  margin-top:12px
 }
-button:disabled{opacity:.5}
-input{
- width:100%;padding:13px;
- margin-top:10px;border-radius:8px;
- border:1px solid #526178;
+button:disabled{opacity:.45}
+input,textarea{
+ width:100%;padding:12px;margin-top:9px;
+ border-radius:8px;border:1px solid #526178;
  background:#101827;color:white
 }
-.small{font-size:12px;color:#aab7ca}
-#status{overflow-wrap:anywhere}
+textarea{min-height:110px}
+.small{font-size:13px;color:#aab7ca;line-height:1.5}
+.good{color:#75f0b5}
+.bad{color:#ff7b83}
+.warn{color:#ffd27a}
+#status,#network{overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 
 <header>
 <h1>TRON TESTNET STUDIO</h1>
-<p class="subtitle">Your TRC20 Development Dashboard</p>
+<p class="small">TRC20 Development Dashboard v2.1</p>
 <span class="badge">NILE TESTNET ONLY</span>
 </header>
 
 <div class="card">
-<h3>Wallet Connection</h3>
-<p class="small">Connect your TronLink test wallet.</p>
-<button onclick="connectWallet()">Connect TronLink</button>
+<h3>1. Wallet Connection</h3>
+<button id="connectBtn">Connect TronLink</button>
 <p id="status">Wallet not connected</p>
+<p id="network">Network not verified</p>
 </div>
 
 <div class="card">
-<h3>Network Information</h3>
-<p id="network">Waiting for wallet connection</p>
-</div>
-
-<div class="card">
-<h3>Token Creation</h3>
-<p class="small">Create a genuine custom TRC20 test token.</p>
+<h3>2. Token Details</h3>
 <input id="tokenName" placeholder="Token Name">
 <input id="tokenSymbol" placeholder="Token Symbol">
-<input id="supply" type="number"
-placeholder="Initial supply">
-<button disabled>Create Test Token – Next Step</button>
+<input id="supply" type="number" min="1"
+placeholder="Initial Supply">
 </div>
 
 <div class="card">
-<h3>Token Transfer</h3>
-<input placeholder="Recipient TRON address" disabled>
-<input placeholder="Amount" disabled>
-<button disabled>Send Test Tokens – Next Step</button>
+<h3>3. Smart Contract Compiler</h3>
+<p class="small">
+Compile your own TRC20 Solidity contract using TronIDE.
+Paste the compiled ABI and creation bytecode below.
+</p>
+
+<textarea id="abi"
+placeholder="Paste ABI JSON"></textarea>
+
+<textarea id="bytecode"
+placeholder="Paste creation bytecode"></textarea>
+
+<button id="deployBtn" disabled>
+Deploy Custom Test Token
+</button>
+
+<p id="deployResult" class="small">
+Connect wallet and provide valid compiler output.
+</p>
+</div>
+
+<div class="card">
+<h3>4. Token Balance</h3>
+<input id="contractAddress"
+placeholder="TRON Contract Address">
+
+<button id="balanceBtn" disabled>
+Check Token Balance
+</button>
+
+<p id="balanceResult" class="small"></p>
+</div>
+
+<div class="card">
+<h3>5. Token Transfer</h3>
+<input id="recipient"
+placeholder="Recipient TRON Address">
+
+<input id="transferAmount" type="number"
+min="0" placeholder="Amount">
+
+<button id="transferBtn" disabled>
+Send Test Tokens
+</button>
+
+<p id="transferResult" class="small"></p>
 </div>
 
 <p class="small" style="text-align:center">
-Development version 1.0 | Testnet only<br>
-No real USDT or mainnet transactions.
+Development Version 2.1<br>
+Nile Testnet Only · Not Real USDT
 </p>
 
+<script src="https://cdn.jsdelivr.net/npm/tronweb@6.0.4/dist/TronWeb.min.js"></script>
+
 <script>
+let tronWeb = null;
+let walletAddress = null;
+let nileVerified = false;
 
-let tronProvider = null;
+const $ = id => document.getElementById(id);
 
-window.addEventListener("TIP6963:announceProvider", (event) => {
-  if (event.detail?.info?.name === "TronLink") {
-    tronProvider = event.detail.provider;
-  }
-});
-
-window.dispatchEvent(new Event("TIP6963:requestProvider"));
-
-async function connectWallet() {
-  const status = document.getElementById("status");
-  const network = document.getElementById("network");
-
-  try {
-    tronProvider = tronProvider || window.tron;
-
-    if (!tronProvider) {
-      throw new Error(
-        "Open this website inside TronLink DApp browser."
-      );
-    }
-
-    await tronProvider.request({
-      method: "eth_requestAccounts"
-    });
-
-    const tronWeb = tronProvider.tronWeb;
-
-    if (!tronWeb || !tronWeb.ready) {
-      throw new Error("Wallet is not ready. Try again.");
-    }
-
-    const address = tronWeb.defaultAddress.base58;
-    const host = tronWeb.fullNode.host || "";
-
-    status.innerText = "Connected: " + address;
-
-    if (host.toLowerCase().includes("nile")) {
-      network.innerText = "NILE TESTNET VERIFIED";
-      network.style.color = "#75f0b5";
-    } else {
-      network.innerText =
-        "Network not verified as Nile. No transactions allowed.";
-      network.style.color = "#ff626b";
-    }
-
-  } catch (error) {
-    status.innerText = "Connection failed: " + error.message;
-  }
+function show(id,msg,type="small"){
+ $(id).textContent=msg;
+ $(id).className=type;
 }
 
+function validAddress(address){
+ try{
+  return !!tronWeb && tronWeb.isAddress(address);
+ }catch(e){
+  return false;
+ }
+}
+
+function updateButtons(){
+ const name=$("tokenName").value.trim();
+ const symbol=$("tokenSymbol").value.trim();
+ const supply=Number($("supply").value);
+
+ let abiValid=false;
+ let bytecodeValid=false;
+
+ try{
+  const abi=JSON.parse($("abi").value);
+  abiValid=Array.isArray(abi)&&abi.length>0;
+ }catch(e){}
+
+ const bytecode=$("bytecode").value.trim()
+ .replace(/^0x/i,"");
+
+ bytecodeValid=/^[0-9a-fA-F]+$/.test(bytecode)
+ && bytecode.length>20;
+
+ $("deployBtn").disabled=!(
+  nileVerified && name && symbol &&
+  Number.isSafeInteger(supply) && supply>0 &&
+  abiValid && bytecodeValid
+ );
+
+ $("balanceBtn").disabled=!(
+  nileVerified &&
+  validAddress($("contractAddress").value.trim())
+ );
+
+ $("transferBtn").disabled=!(
+  nileVerified &&
+  validAddress($("contractAddress").value.trim()) &&
+  validAddress($("recipient").value.trim()) &&
+  Number($("transferAmount").value)>0
+ );
+}
+
+async function connectWallet(){
+ show("status","Connecting to TronLink...");
+
+ try{
+  const provider=window.tronLink ||
+                 window.tron;
+
+  if(!provider)
+   throw new Error("Open in TronLink DApp Browser.");
+
+  if(provider.request){
+   try{
+    await provider.request({
+     method:"eth_requestAccounts"
+    });
+   }catch(e){
+    await provider.request({
+     method:"tron_requestAccounts"
+    });
+   }
+  }
+
+  tronWeb=provider.tronWeb ||
+          window.tronWeb;
+
+  if(!tronWeb || !tronWeb.ready)
+   throw new Error("Wallet is not ready.");
+
+  walletAddress=
+   tronWeb.defaultAddress.base58;
+
+  const genesis=
+   await tronWeb.trx.getBlockByNumber(0);
+
+  const chainId=
+   "0x"+genesis.blockID.slice(-8).toLowerCase();
+
+  if(chainId!=="0xcd8690dc")
+   throw new Error("Switch to Nile Testnet.");
+
+  nileVerified=true;
+
+  show("status",
+   "Connected: "+walletAddress,"good");
+
+  show("network",
+   "NILE TESTNET VERIFIED","good");
+
+  updateButtons();
+
+ }catch(e){
+  nileVerified=false;
+  tronWeb=null;
+
+  show("status",
+   "Connection error: "+e.message,"bad");
+
+  show("network",
+   "Network not verified","bad");
+
+  updateButtons();
+ }
+}
+
+$("connectBtn").onclick=connectWallet;
+
+[
+ "tokenName","tokenSymbol","supply",
+ "abi","bytecode","contractAddress",
+ "recipient","transferAmount"
+].forEach(id=>{
+ $(id).addEventListener("input",updateButtons);
+});
+
+$("deployBtn").onclick=async()=>{
+ try{
+  if(!nileVerified || !tronWeb)
+   throw new Error("Connect Nile wallet first.");
+
+  const abi=JSON.parse($("abi").value);
+  const bytecode=$("bytecode").value.trim()
+   .replace(/^0x/i,"");
+
+  const supply=BigInt($("supply").value);
+
+  show("deployResult",
+   "Waiting for wallet approval...","warn");
+
+  const contract=await tronWeb.contract().new({
+   abi:abi,
+   bytecode:bytecode,
+   feeLimit:1000000000,
+   callValue:0,
+   parameters:[
+    $("tokenName").value.trim(),
+    $("tokenSymbol").value.trim(),
+    supply.toString()
+   ]
+  });
+
+  $("contractAddress").value=contract.address;
+
+  show("deployResult",
+   "Contract deployed: "+contract.address,
+   "good");
+
+  updateButtons();
+
+ }catch(e){
+  show("deployResult",
+   "Deployment failed: "+e.message,"bad");
+  updateButtons();
+ }
+};
+
+$("balanceBtn").onclick=async()=>{
+ try{
+  const contract=await tronWeb.contract().at(
+   $("contractAddress").value.trim()
+  );
+
+  const balance=await
+   contract.balanceOf(walletAddress).call();
+
+  const decimals=Number(
+   await contract.decimals().call()
+  );
+
+  const symbol=await contract.symbol().call();
+
+  const amount=
+   Number(balance.toString())/
+   Math.pow(10,decimals);
+
+  show("balanceResult",
+   "Balance: "+amount+" "+symbol,"good");
+
+ }catch(e){
+  show("balanceResult",
+   "Error: "+e.message,"bad");
+ }
+};
+
+$("transferBtn").onclick=async()=>{
+ try{
+  const contract=await tronWeb.contract().at(
+   $("contractAddress").value.trim()
+  );
+
+  const decimals=Number(
+   await contract.decimals().call()
+  );
+
+  const amount=Number($("transferAmount").value);
+
+  if(!Number.isFinite(amount)||amount<=0)
+   throw new Error("Invalid amount.");
+
+  const scaled=BigInt(
+   Math.round(amount*Math.pow(10,decimals))
+  );
+
+  show("transferResult",
+   "Waiting for TronLink approval...","warn");
+
+  const tx=await contract.transfer(
+   $("recipient").value.trim(),
+   scaled.toString()
+  ).send({
+   feeLimit:100000000
+  });
+
+  show("transferResult",
+   "Transaction: "+tx,"good");
+
+ }catch(e){
+  show("transferResult",
+   "Transfer failed: "+e.message,"bad");
+ }
+};
+
+updateButtons();
 </script>
 
 </body>
